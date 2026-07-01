@@ -44,6 +44,8 @@ Widget buildFlutterMapWidget({
   required LatLng initialCenter,
   required double initialZoom,
   required LatLng? userLocation,
+  LatLng? searchLocation,
+  void Function()? onSearchMarkerTap,
   double? maxZoom,
 }) {
   return RepaintBoundary(
@@ -88,6 +90,32 @@ Widget buildFlutterMapWidget({
             onDelete: onDeletePlace,
             onEdit: onEditPlace,
           ),
+
+          // Special (temporary) marker for a location found via search. Tapping
+          // it lets the user save the location as a place.
+          if (searchLocation != null)
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: searchLocation,
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.topCenter,
+                  child: GestureDetector(
+                    onTap: onSearchMarkerTap,
+                    child: const Tooltip(
+                      message: 'Tap to save this location',
+                      child: Icon(
+                        Icons.location_on,
+                        color: Colors.red,
+                        size: 44,
+                        shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
 
           // User location marker layer (always on top)
           ...() {

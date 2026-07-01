@@ -76,7 +76,11 @@ mixin MarkerCacheMixin {
     required List<MarkerData> Function() builder,
   }) {
     final placesHash = Object.hashAll(
-      allPlaces.map((p) => '${p.id}_${p.note}_${p.lat}_${p.lng}'),
+      allPlaces.map(
+        (p) =>
+            '${p.id}_${p.note}_${p.lat}_${p.lng}_'
+            '${p.dateOfInterest}_${p.tags.join(",")}',
+      ),
     );
     final savingHash = Object.hashAll(savingPlaceIds);
     final showLocal = mapSettings.showLocalPlaces;

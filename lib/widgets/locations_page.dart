@@ -178,7 +178,11 @@ class _LocationsPageState extends State<LocationsPage>
   Future<void> _refresh() async => await _loadPlaces(forceRefresh: true);
 
   Future<void> _addPlace() async {
-    final result = await showAddPlaceDialogIfLoggedIn(context: context);
+    final knownTags = <String>{for (final p in _places) ...p.tags};
+    final result = await showAddPlaceDialogIfLoggedIn(
+      context: context,
+      knownTags: knownTags,
+    );
     if (result == null || !mounted) return;
     // Optimistic update: show immediately, save in background.
     safeSetState(this, () => _places = [..._places, result.place]);
@@ -259,9 +263,10 @@ class _LocationsPageState extends State<LocationsPage>
   }
 
   Future<void> _editPlace(Place place) async {
+    final knownTags = <String>{for (final p in _places) ...p.tags};
     final result = await showDialog<Place>(
       context: context,
-      builder: (_) => EditPlaceDialog(place: place),
+      builder: (_) => EditPlaceDialog(place: place, knownTags: knownTags),
     );
     if (result == null || !mounted) return;
 

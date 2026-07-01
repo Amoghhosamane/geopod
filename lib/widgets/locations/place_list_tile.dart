@@ -125,6 +125,36 @@ class PlaceListTile extends StatelessWidget {
                 ),
               ],
             ),
+            if (place.formattedDateOfInterest != null) ...[
+              const Gap(2),
+              Row(
+                children: [
+                  const Icon(Icons.event, size: 14, color: Colors.grey),
+                  const Gap(4),
+                  Text(
+                    place.formattedDateOfInterest!,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ],
+            if (place.tags.isNotEmpty) ...[
+              const Gap(4),
+              Wrap(
+                spacing: 4,
+                runSpacing: 2,
+                children: place.tags
+                    .map(
+                      (t) => Chip(
+                        label: Text(t, style: const TextStyle(fontSize: 11)),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
           ],
         ),
         trailing: Row(
@@ -190,6 +220,32 @@ class PlaceListTile extends StatelessWidget {
                     ),
                     const Gap(8),
                     DetailRow(label: 'Saved', value: place.formattedDate),
+                    if (place.formattedDateOfInterest != null) ...[
+                      const Gap(8),
+                      DetailRow(
+                        label: 'Date of interest',
+                        value: place.formattedDateOfInterest!,
+                      ),
+                    ],
+                    if (place.tags.isNotEmpty) ...[
+                      const Gap(12),
+                      Text(
+                        'Tags',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const Gap(4),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: place.tags
+                            .map((t) => Chip(label: Text(t)))
+                            .toList(),
+                      ),
+                    ],
                     PlaceMediaSection(
                       placeId: place.id,
                       onManageLinks: () => showMediaLinkPickerDialog(

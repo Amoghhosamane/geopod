@@ -18,15 +18,26 @@ import 'package:emacs_text_field/emacs_text_field.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:gap/gap.dart';
 
+import 'package:geopod/constants/place_tags.dart';
 import 'package:geopod/models/place.dart';
 import 'package:geopod/services/geocoding_service.dart';
+import 'package:geopod/widgets/locations/place_date_field.dart';
+import 'package:geopod/widgets/locations/place_tags_field.dart';
 
 /// Dialog for editing a place's title, note, and coordinates.
 
 class EditPlaceDialog extends StatefulWidget {
-  const EditPlaceDialog({super.key, required this.place});
+  const EditPlaceDialog({
+    super.key,
+    required this.place,
+    this.knownTags = const {},
+  });
 
   final Place place;
+
+  /// Tags already used across saved places, merged with defaults for the
+  /// tag selector.
+  final Set<String> knownTags;
 
   @override
   State<EditPlaceDialog> createState() => _EditPlaceDialogState();
@@ -48,6 +59,10 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
   late final String _initNote;
   String? _initAddress;
 
+  // Optional date of interest and tags for this place.
+  DateTime? _dateOfInterest;
+  late final Set<String> _tags;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +75,11 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
     );
     _noteController = TextEditingController(text: widget.place.note);
     _previewAddress = widget.place.address;
+    _tags = {...widget.place.tags};
+    final doi = widget.place.dateOfInterest;
+    if (doi != null && doi.isNotEmpty) {
+      _dateOfInterest = DateTime.tryParse(doi);
+    }
     _initTitle = _titleController.text;
     _initLat = _latController.text;
     _initLng = _lngController.text;
@@ -82,7 +102,24 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
       _latController.text != _initLat ||
       _lngController.text != _initLng ||
       _noteController.text != _initNote ||
-      _previewAddress != _initAddress;
+      _previewAddress != _initAddress ||
+      _dateChanged ||
+      _tagsChanged;
+
+  bool get _dateChanged {
+    final current = _dateOfInterest?.toIso8601String();
+    return current != widget.place.dateOfInterest;
+  }
+
+  bool get _tagsChanged {
+    final orig = {...widget.place.tags};
+    return orig.length != _tags.length || !orig.containsAll(_tags);
+  }
+
+  Future<void> _addCustomTag() async {
+    final tag = await promptForCustomTag(context);
+    if (tag != null) setState(() => _tags.add(tag));
+  }
 
   @override
   void dispose() {
@@ -127,6 +164,9 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
         note: _noteController.text,
         timestamp: DateTime.now().toIso8601String(),
         address: widget.place.address,
+        dateOfInterest: _dateOfInterest?.toIso8601String(),
+        clearDateOfInterest: _dateOfInterest == null,
+        tags: _tags.toList()..sort(),
       ),
     );
   }
@@ -322,6 +362,24 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
                     fontStyle: FontStyle.italic,
                     color: Colors.grey.shade600,
                   ),
+                ),
+
+                // Date of interest (optional, clearable).
+                const Gap(16),
+                PlaceDateField(
+                  value: _dateOfInterest,
+                  onChanged: (d) => setState(() => _dateOfInterest = d),
+                ),
+
+                // Tags (papertrail-style chips).
+                const Gap(16),
+                PlaceTagsField(
+                  options: {...defaultPlaceTags, ...widget.knownTags, ..._tags},
+                  selected: _tags,
+                  onToggle: (tag, sel) => setState(() {
+                    sel ? _tags.add(tag) : _tags.remove(tag);
+                  }),
+                  onAddCustom: _addCustomTag,
                 ),
               ],
             ),

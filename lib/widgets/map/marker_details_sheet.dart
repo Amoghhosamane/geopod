@@ -234,6 +234,31 @@ class _MarkerDetailsSheetContent extends StatelessWidget {
             ],
           ),
 
+          // ── Date of interest ───────────────────────────────────────────
+          if (marker.dateOfInterest != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.event, size: 20, color: Colors.grey.shade600),
+                const SizedBox(width: 12),
+                Text(
+                  marker.dateOfInterest!,
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ],
+
+          // ── Tags ───────────────────────────────────────────────────────
+          if (marker.tags.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: marker.tags.map((t) => Chip(label: Text(t))).toList(),
+            ),
+          ],
+
           // ── Linked media (audio / video) ───────────────────────────────
           // Shown for all markers (including local/demo ones) so users can
           // always link or view media from the sheet.

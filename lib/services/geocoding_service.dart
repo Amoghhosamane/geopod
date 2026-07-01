@@ -39,9 +39,50 @@ class GeocodingService {
   static const String _nominatimEndpoint =
       'https://nominatim.openstreetmap.org/reverse';
 
+  /// Photon API endpoint for forward geocoding (search). Photon is an
+  /// OpenStreetMap-based geocoder with typo tolerance and search-as-you-type,
+  /// so it handles minor misspellings that Nominatim would reject.
+  static const String _photonSearchEndpoint = 'https://photon.komoot.io/api/';
+
   /// User-Agent header required by Nominatim API.
 
   static const String _userAgent = 'GeopodApp/1.0 (Flutter)';
+
+  /// Searches for a typed address, place name or landmark and returns matching
+  /// locations, best match first.
+  ///
+  /// Returns an empty list on error or when nothing is found.
+
+  static Future<List<GeocodeResult>> search(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return [];
+    try {
+      final uri = Uri.parse(
+        '$_photonSearchEndpoint?q=${Uri.encodeQueryComponent(q)}'
+        '&limit=8&lang=en',
+      );
+
+      final response = await http
+          .get(
+            uri,
+            headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final features = data['features'] as List<dynamic>? ?? [];
+        return features
+            .whereType<Map<String, dynamic>>()
+            .map(GeocodeResult.fromPhotonFeature)
+            .whereType<GeocodeResult>()
+            .toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
 
   /// Converts latitude/longitude coordinates to a human-readable address.
   ///
@@ -133,5 +174,77 @@ class GeocodingService {
     } catch (_) {
       return 'Unknown location';
     }
+  }
+}
+
+/// A single forward-geocoding search result.
+
+class GeocodeResult {
+  const GeocodeResult({
+    required this.lat,
+    required this.lng,
+    required this.displayName,
+  });
+
+  final double lat;
+  final double lng;
+
+  /// Full human-readable name/address of the match.
+  final String displayName;
+
+  /// A shorter label: the first component of the display name.
+  String get shortName => displayName.split(',').first.trim();
+
+  /// Builds a result from a Photon GeoJSON feature. Photon has no single
+  /// display-name field, so compose one from the address properties. Note that
+  /// GeoJSON coordinates are [longitude, latitude] (lon first).
+
+  static GeocodeResult? fromPhotonFeature(Map<String, dynamic> feature) {
+    final geometry = feature['geometry'] as Map<String, dynamic>?;
+    final coords = geometry?['coordinates'] as List<dynamic>?;
+    if (coords == null || coords.length < 2) return null;
+    final lng = (coords[0] as num?)?.toDouble();
+    final lat = (coords[1] as num?)?.toDouble();
+    if (lat == null || lng == null) return null;
+
+    final props = feature['properties'] as Map<String, dynamic>? ?? {};
+
+    String? str(String key) {
+      final v = props[key];
+      if (v == null) return null;
+      final s = v.toString().trim();
+      return s.isEmpty ? null : s;
+    }
+
+    // Compose a readable address from the available components, in order and
+    // without duplicates, matching how the display name reads for a place.
+    final name = str('name');
+    final houseAndStreet = [
+      str('housenumber'),
+      str('street'),
+    ].whereType<String>().join(' ');
+
+    final parts = <String>[
+      ?name,
+      if (houseAndStreet.isNotEmpty) houseAndStreet,
+      if (str('district') != null) str('district')!,
+      if (str('city') != null) str('city')!,
+      if (str('county') != null) str('county')!,
+      if (str('postcode') != null) str('postcode')!,
+      if (str('state') != null) str('state')!,
+      if (str('country') != null) str('country')!,
+    ];
+
+    // De-duplicate consecutive equal parts (e.g. name == city for a city).
+    final deduped = <String>[];
+    for (final p in parts) {
+      if (deduped.isEmpty || deduped.last != p) deduped.add(p);
+    }
+
+    final displayName = deduped.isEmpty
+        ? 'Unknown location'
+        : deduped.join(', ');
+
+    return GeocodeResult(lat: lat, lng: lng, displayName: displayName);
   }
 }

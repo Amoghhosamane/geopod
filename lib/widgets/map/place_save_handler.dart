@@ -95,6 +95,7 @@ Future<AddPlaceResult?> showAddPlaceDialogIfLoggedIn({
   required BuildContext context,
   double? latitude,
   double? longitude,
+  Set<String> knownTags = const {},
 }) async {
   final webId = await getWebId();
   if (webId == null || webId.isEmpty) {
@@ -109,6 +110,7 @@ Future<AddPlaceResult?> showAddPlaceDialogIfLoggedIn({
       initialLatitude: latitude,
       initialLongitude: longitude,
       returnWidget: const GeoMapWidget(),
+      knownTags: knownTags,
     ),
   );
   return result;

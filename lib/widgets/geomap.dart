@@ -22,6 +22,7 @@ import 'package:solidpod/solidpod.dart' show authStateNotifier;
 import 'package:solidui/solidui.dart';
 
 import 'package:geopod/models/place.dart';
+import 'package:geopod/services/geocoding_service.dart';
 import 'package:geopod/services/location_service.dart';
 import 'package:geopod/services/map_settings_service.dart';
 import 'package:geopod/services/navigation_service.dart' show pendingNavTarget;
@@ -46,6 +47,7 @@ import 'package:geopod/widgets/map/geomap_state_mixin.dart';
 import 'package:geopod/widgets/map/geomap_viewport_logic.dart';
 import 'package:geopod/widgets/map/map_floating_buttons.dart';
 import 'package:geopod/widgets/map/map_overlay_buttons.dart';
+import 'package:geopod/widgets/map/map_search_bar.dart';
 import 'package:geopod/widgets/map/marker_data.dart';
 import 'package:geopod/widgets/map/place_save_handler.dart';
 import 'package:geopod/widgets/map_settings_dialog.dart';
@@ -108,6 +110,10 @@ class GeoMapWidgetState extends State<GeoMapWidget>
   bool isLocating = false;
   @override
   LatLng? userLocation;
+
+  /// The current search-result location shown as a special temporary marker,
+  /// or null when there is none.
+  GeocodeResult? _searchResult;
 
   @override
   void initState() {
@@ -355,9 +361,59 @@ class GeoMapWidgetState extends State<GeoMapWidget>
       context: context,
       latitude: lat,
       longitude: lng,
+      knownTags: _knownTags(),
     );
     if (result != null && mounted) {
       _handleOptimisticSave(result.place, encrypted: result.encrypted);
+    }
+  }
+
+  /// All tags currently used across saved places, for the tag selector.
+  Set<String> _knownTags() {
+    final tags = <String>{};
+    for (final p in allPlaces) {
+      tags.addAll(p.tags);
+    }
+    return tags;
+  }
+
+  /// Handle a location chosen from the search bar: move the map there and drop
+  /// a special (temporary) marker. Tapping that marker offers to save it.
+
+  Future<void> _onSearchResultSelected(GeocodeResult result) async {
+    setState(() => _searchResult = result);
+    mapController.move(LatLng(result.lat, result.lng), 16.0);
+  }
+
+  /// Tapping the special search marker offers to save it as a place.
+
+  Future<void> _onSearchMarkerTapped() async {
+    final result = _searchResult;
+    if (result == null) return;
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Save location?'),
+        content: Text(result.displayName),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (save == true && mounted) {
+      // Clear the temporary search pin first so it never sits on top of and
+      // hides the newly saved place marker.
+      setState(() => _searchResult = null);
+      await _showAddPlaceDialog(lat: result.lat, lng: result.lng);
     }
   }
 
@@ -411,7 +467,7 @@ class GeoMapWidgetState extends State<GeoMapWidget>
 
     final result = await showDialog<Place>(
       context: context,
-      builder: (_) => EditPlaceDialog(place: place),
+      builder: (_) => EditPlaceDialog(place: place, knownTags: _knownTags()),
     );
     if (result == null || !mounted) return;
 
@@ -463,45 +519,60 @@ class GeoMapWidgetState extends State<GeoMapWidget>
     final isMapDark = mapSettings.mapSource.isDarkSource;
     final applyFilter = isDark && !isMapDark;
     return Scaffold(
-      body: Stack(
+      body: Column(
         children: [
-          buildFlutterMapWidget(
-            mapController: mapController,
-            fadeAnimation: fadeAnimation,
-            mapSettings: mapSettings,
-            tileProvider: tileProvider,
-            applyFilter: applyFilter,
-            filteredMarkers: _filteredMarkers,
-            shouldAnimate: !initialAnimationComplete || isPostLoginRefresh,
-            onTap: (tp, ll) =>
-                _showAddPlaceDialog(lat: ll.latitude, lng: ll.longitude),
-            onLongPress: (tp, ll) =>
-                _showAddPlaceDialog(lat: ll.latitude, lng: ll.longitude),
-            onPositionChanged: _onMapPositionChanged,
-            onDeletePlace: _confirmAndDeletePlace,
-            onEditPlace: _editPlaceFromMap,
-            context: context,
-            initialCenter: initialCenter,
-            initialZoom: initialZoom,
-            userLocation: userLocation,
-          ),
+          // Search bar sits above the map (not overlaid), so its results
+          // list pushes the map down instead of covering it.
+          MapSearchBar(onSelect: _onSearchResultSelected),
+          Expanded(
+            child: Stack(
+              children: [
+                buildFlutterMapWidget(
+                  mapController: mapController,
+                  fadeAnimation: fadeAnimation,
+                  mapSettings: mapSettings,
+                  tileProvider: tileProvider,
+                  applyFilter: applyFilter,
+                  filteredMarkers: _filteredMarkers,
+                  shouldAnimate:
+                      !initialAnimationComplete || isPostLoginRefresh,
+                  onTap: (tp, ll) =>
+                      _showAddPlaceDialog(lat: ll.latitude, lng: ll.longitude),
+                  onLongPress: (tp, ll) =>
+                      _showAddPlaceDialog(lat: ll.latitude, lng: ll.longitude),
+                  onPositionChanged: _onMapPositionChanged,
+                  onDeletePlace: _confirmAndDeletePlace,
+                  onEditPlace: _editPlaceFromMap,
+                  context: context,
+                  initialCenter: initialCenter,
+                  initialZoom: initialZoom,
+                  userLocation: userLocation,
+                  searchLocation: _searchResult == null
+                      ? null
+                      : LatLng(_searchResult!.lat, _searchResult!.lng),
+                  onSearchMarkerTap: _onSearchMarkerTapped,
+                ),
 
-          // Loading indicator.
-          buildLoadingIndicator(isLoading: isLoadingPlaces),
-          AddPlaceOverlayButton(
-            isLoading: isLoadingPlaces,
-            isLoggedIn: isLoggedIn,
-            onTap: () {
-              if (isLoggedIn) {
-                _showAddPlaceDialog();
-              } else {
-                SolidAuthHandler.instance.handleLogin(context);
-              }
-            },
-          ),
+                // Loading indicator.
+                buildLoadingIndicator(isLoading: isLoadingPlaces),
 
-          // Fullscreen toggle button.
-          const FullscreenToggleButton(),
+                AddPlaceOverlayButton(
+                  isLoading: isLoadingPlaces,
+                  isLoggedIn: isLoggedIn,
+                  onTap: () {
+                    if (isLoggedIn) {
+                      _showAddPlaceDialog();
+                    } else {
+                      SolidAuthHandler.instance.handleLogin(context);
+                    }
+                  },
+                ),
+
+                // Fullscreen toggle button.
+                const FullscreenToggleButton(),
+              ],
+            ),
+          ),
         ],
       ),
       floatingActionButton: RepaintBoundary(

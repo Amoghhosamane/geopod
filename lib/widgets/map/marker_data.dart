@@ -55,6 +55,12 @@ class MarkerData {
   /// Whether this marker is from encrypted storage.
   final bool isEncrypted;
 
+  /// Optional date of interest (formatted) for display.
+  final String? dateOfInterest;
+
+  /// Tags on this place.
+  final List<String> tags;
+
   MarkerData({
     required this.position,
     required this.title,
@@ -65,6 +71,8 @@ class MarkerData {
     this.isSaving = false,
     this.color = Colors.blue,
     this.isEncrypted = false,
+    this.dateOfInterest,
+    this.tags = const [],
   });
 
   String get coordinates =>
@@ -101,6 +109,8 @@ List<MarkerData> buildFilteredMarkers({
               ? mapSettings.localPlacesColor
               : mapSettings.userPlacesColor,
           isEncrypted: p.isEncrypted,
+          dateOfInterest: p.formattedDateOfInterest,
+          tags: p.tags,
         ),
       )
       .toList();

@@ -26,6 +26,13 @@ class Place {
   final String timestamp;
   final String? address;
 
+  /// Optional user-specified date of interest for this place (ISO-8601 date,
+  /// e.g. '2026-07-01'). Null when not set.
+  final String? dateOfInterest;
+
+  /// User tags for categorising this place.
+  final List<String> tags;
+
   /// Whether this place is from local assets (canned examples).
   final bool isLocal;
 
@@ -40,6 +47,8 @@ class Place {
     required this.note,
     required this.timestamp,
     this.address,
+    this.dateOfInterest,
+    this.tags = const [],
     this.isLocal = false,
     this.isEncrypted = false,
   });
@@ -56,6 +65,10 @@ class Place {
     bool isEncryptedSource = false,
   }) {
     final note = json['note'] as String? ?? '';
+    final rawTags = json['tags'];
+    final tags = rawTags is List
+        ? rawTags.map((e) => e.toString()).toList()
+        : <String>[];
     return Place(
       id:
           json['id'] as String? ??
@@ -66,6 +79,8 @@ class Place {
       note: note,
       timestamp: json['timestamp'] as String? ?? '',
       address: json['address'] as String?,
+      dateOfInterest: json['dateOfInterest'] as String?,
+      tags: tags,
       isLocal: isLocalSource,
       isEncrypted: isEncryptedSource,
     );
@@ -82,6 +97,8 @@ class Place {
       'note': note,
       'timestamp': timestamp,
       if (address != null) 'address': address,
+      if (dateOfInterest != null) 'dateOfInterest': dateOfInterest,
+      if (tags.isNotEmpty) 'tags': tags,
     };
   }
 
@@ -128,6 +145,9 @@ class Place {
     String? note,
     String? timestamp,
     String? address,
+    String? dateOfInterest,
+    bool clearDateOfInterest = false,
+    List<String>? tags,
     bool? isLocal,
     bool? isEncrypted,
   }) {
@@ -139,8 +159,26 @@ class Place {
       note: note ?? this.note,
       timestamp: timestamp ?? this.timestamp,
       address: address ?? this.address,
+      dateOfInterest: clearDateOfInterest
+          ? null
+          : (dateOfInterest ?? this.dateOfInterest),
+      tags: tags ?? this.tags,
       isLocal: isLocal ?? this.isLocal,
       isEncrypted: isEncrypted ?? this.isEncrypted,
     );
+  }
+
+  /// Formatted date of interest (YYYY-MM-DD) or null when not set.
+
+  String? get formattedDateOfInterest {
+    final d = dateOfInterest;
+    if (d == null || d.isEmpty) return null;
+    try {
+      final date = DateTime.parse(d);
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-'
+          '${date.day.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return d;
+    }
   }
 }

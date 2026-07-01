@@ -20,10 +20,13 @@ import 'package:flutter/services.dart';
 import 'package:emacs_text_field/emacs_text_field.dart';
 import 'package:gap/gap.dart';
 
+import 'package:geopod/constants/place_tags.dart';
 import 'package:geopod/services/geocoding_service.dart';
 import 'package:geopod/services/places_service.dart';
 import 'package:geopod/utils/ui_utils.dart';
 import 'package:geopod/utils/widget_utils.dart';
+import 'package:geopod/widgets/locations/place_date_field.dart';
+import 'package:geopod/widgets/locations/place_tags_field.dart';
 import 'package:geopod/widgets/weather_dialog.dart';
 
 /// Result returned from AddPlaceForm containing the place data.
@@ -44,11 +47,16 @@ class AddPlaceForm extends StatefulWidget {
     this.initialLatitude,
     this.initialLongitude,
     required this.returnWidget,
+    this.knownTags = const {},
   });
 
   final double? initialLatitude;
   final double? initialLongitude;
   final Widget returnWidget;
+
+  /// Tags already used across saved places, merged with the built-in defaults
+  /// to populate the tag selector.
+  final Set<String> knownTags;
 
   @override
   State<AddPlaceForm> createState() => _AddPlaceFormState();
@@ -64,6 +72,10 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
   String? _addressPreview;
   bool _isLoadingAddress = false;
   Timer? _debounceTimer;
+
+  // Optional user-chosen date of interest, and selected tags.
+  DateTime? _dateOfInterest;
+  final Set<String> _tags = {};
 
   // All places are stored encrypted; there is no opt-out.
   static const bool _encrypt = true;
@@ -177,8 +189,15 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
       note: _noteController.text,
       timestamp: DateTime.now().toUtc().toIso8601String(),
       address: 'Loading address...',
+      dateOfInterest: _dateOfInterest?.toIso8601String(),
+      tags: _tags.toList()..sort(),
     );
     Navigator.pop(context, AddPlaceResult(place: place, encrypted: _encrypt));
+  }
+
+  Future<void> _addCustomTag() async {
+    final tag = await promptForCustomTag(context);
+    if (tag != null) setState(() => _tags.add(tag));
   }
 
   @override
@@ -337,6 +356,24 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
                       border: OutlineInputBorder(),
                     ),
                   ),
+                ),
+
+                // Date of interest (optional, clearable).
+                const Gap(16),
+                PlaceDateField(
+                  value: _dateOfInterest,
+                  onChanged: (d) => setState(() => _dateOfInterest = d),
+                ),
+
+                // Tags (papertrail-style chips).
+                const Gap(16),
+                PlaceTagsField(
+                  options: {...defaultPlaceTags, ...widget.knownTags, ..._tags},
+                  selected: _tags,
+                  onToggle: (tag, sel) => setState(() {
+                    sel ? _tags.add(tag) : _tags.remove(tag);
+                  }),
+                  onAddCustom: _addCustomTag,
                 ),
               ],
             ),
