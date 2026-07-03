@@ -26,6 +26,7 @@ then please show some ❤️ and tap on the star at
 
 ## 1.0 Updated key management
 
++ Update solidui/solidpod dependencies [1.0.17 20260703 gjw]
 + Add SEARCH, DATE, TAGS [1.0.16 20260702 gjw]
 + Update ABOUT [1.0.15 20260623 gjw]
 + Fix markdown rendering of tooltips [1.0.14 20260620 gjw]
