@@ -1,17 +1,19 @@
 {
   "@context": "https://www.w3.org/ns/solid/oidc-context.jsonld",
-  "client_id": "https://solidcommunity.au/apps/geopod/client-profile.jsonld",
+  "client_id": "https://geopod.solidcommunity.au/client-profile.jsonld",
   "client_name": "GeoPod",
   "application_type": "native",
   "redirect_uris": [
     "https://geopod.solidcommunity.au/redirect.html",
     "com.togaware.geopod://redirect",
-    "http://localhost:4400/redirect"
+    "http://localhost:4400/redirect",
+    "http://localhost:4400/redirect.html"
   ],
   "post_logout_redirect_uris": [
     "https://geopod.solidcommunity.au/redirect.html",
     "com.togaware.geopod://redirect",
-    "http://localhost:4400/redirect"
+    "http://localhost:4400/redirect",
+    "http://localhost:4400/redirect.html"
   ],
   "scope": "openid profile offline_access webid",
   "grant_types": [
