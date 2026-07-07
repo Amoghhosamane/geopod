@@ -72,7 +72,7 @@ class App extends StatelessWidget {
       ],
       clientId: 'https://solidcommunity.au/apps/geopod/client-profile.jsonld',
       redirectUris: [
-        'https://solidcommunity.au/apps/geopod/redirect.html',
+        'https://geopod.solidcommunity.au/redirect.html',
         'com.togaware.geopod://redirect',
         'http://localhost:4400/redirect',
       ],
