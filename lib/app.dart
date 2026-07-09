@@ -71,7 +71,7 @@ class App extends StatelessWidget {
         'encrypted_data',
         'places',
       ],
-      clientId: 'https://dev.empwr.au/geopod/client-profile.jsonld',
+      clientId: 'https://gjwgit.github.io/geopod/client-profile.jsonld',
       // On web the redirect must be same-origin as where the app is served,
       // otherwise redirect.html's BroadcastChannel cannot hand the auth
       // response back and login hangs on the spinner. solidpod's

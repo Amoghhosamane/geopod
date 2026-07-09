@@ -1,6 +1,6 @@
 {
   "@context": "https://www.w3.org/ns/solid/oidc-context.jsonld",
-  "client_id": "https://dev.empwr.au/geopod/client-profile.jsonld",
+  "client_id": "https://gjwgit.github.io/geopod/client-profile.jsonld",
   "client_name": "GeoPod",
   "application_type": "native",
   "redirect_uris": [
