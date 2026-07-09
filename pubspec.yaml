@@ -32,6 +32,7 @@ dependencies:
   intl: ^0.20.1
   latlong2: ^0.9.1
   markdown_tooltip: ^0.0.10
+  media_kit_libs_video: ^1.0.5
   path_provider: ^2.1.5
   pdf: ^3.11.1
   shared_preferences: ^2.3.3
