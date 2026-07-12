@@ -27,6 +27,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'package:solidpod/solidpod.dart' show registerLogoutCacheCallback;
@@ -70,12 +71,20 @@ class App extends StatelessWidget {
         'encrypted_data',
         'places',
       ],
-      clientId: 'https://solidcommunity.au/apps/geopod/client-profile.jsonld',
-      redirectUris: [
-        'https://geopod.solidcommunity.au/redirect.html',
-        'com.togaware.geopod://redirect',
-        'http://localhost:4400/redirect',
-      ],
+      clientId: 'https://gjwgit.github.io/geopod/client-profile.jsonld',
+      // On web the redirect must be same-origin as where the app is served,
+      // otherwise redirect.html's BroadcastChannel cannot hand the auth
+      // response back and login hangs on the spinner. solidpod's
+      // pickRedirectUri simply takes the first https:// entry (it does not
+      // match on origin), so we derive the web entry from Uri.base.origin:
+      // the deployed https host in production, and http://localhost:4400
+      // under `flutter run -d chrome --web-port=4400`.
+      redirectUris: kIsWeb
+          ? ['${Uri.base.origin}/redirect.html']
+          : const [
+              'com.togaware.geopod://redirect',
+              'http://localhost:4400/redirect.html',
+            ],
       child: appWithPreload,
     );
 
