@@ -26,6 +26,7 @@ then please show some ❤️ and tap on the star at
 
 ## 1.0 Updated key management
 
++ Updated oidc for chrome/web support [1.0.19 20260712 tonypioneer]
 + Update android support [1.0.18 20260704 gjw]
 + Update solidui/solidpod dependencies [1.0.17 20260703 gjw]
 + Add SEARCH, DATE, TAGS [1.0.16 20260702 gjw]
