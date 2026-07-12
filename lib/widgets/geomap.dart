@@ -23,7 +23,6 @@ import 'package:solidui/solidui.dart';
 
 import 'package:geopod/models/place.dart';
 import 'package:geopod/services/geocoding_service.dart';
-import 'package:geopod/services/location_service.dart';
 import 'package:geopod/services/map_settings_service.dart';
 import 'package:geopod/services/navigation_service.dart' show pendingNavTarget;
 import 'package:geopod/services/places_service.dart'
@@ -39,6 +38,7 @@ import 'package:geopod/widgets/map/geomap_core.dart' hide buildLoadingIndicator;
 import 'package:geopod/widgets/map/geomap_encrypted_places_loader.dart';
 import 'package:geopod/widgets/map/geomap_event_handlers.dart';
 import 'package:geopod/widgets/map/geomap_initialization.dart';
+import 'package:geopod/widgets/map/geomap_locate_handler.dart';
 import 'package:geopod/widgets/map/geomap_place_handlers.dart';
 import 'package:geopod/widgets/map/geomap_settings.dart';
 import 'package:geopod/widgets/map/geomap_settings_loader.dart';
@@ -67,7 +67,8 @@ class GeoMapWidgetState extends State<GeoMapWidget>
         GeoMapEventHandlers,
         GeoMapActionHandlers,
         GeoMapSettingsLoader,
-        GeoMapEncryptedPlacesLoader {
+        GeoMapEncryptedPlacesLoader,
+        GeoMapLocateHandler {
   // State variables implementation for mixins.
   @override
   final MapController mapController = MapController();
@@ -281,64 +282,6 @@ class GeoMapWidgetState extends State<GeoMapWidget>
     // Clear before moving so a second listener call is a no-op.
     pendingNavTarget.value = null;
     navigateToLocation(target);
-  }
-
-  /// Handle location button tap - get user location and move map to it.
-
-  Future<void> _onLocatePressed() async {
-    if (isLocating) return;
-
-    setState(() => isLocating = true);
-
-    try {
-      final result = await LocationService.getCurrentLocation();
-
-      if (!mounted) return;
-
-      if (result.success && result.location != null) {
-        // Save user location and move map to it.
-        setState(() {
-          userLocation = result.location;
-        });
-        mapController.move(result.location!, 15.0);
-
-        // Show success message.
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location found successfully'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        // Show detailed error message.
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result.errorMessage ?? 'Unable to get your location',
-              ),
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(label: 'OK', onPressed: () {}),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error getting location: $e'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => isLocating = false);
-      }
-    }
   }
 
   /// Cached getter for filtered markers to avoid expensive rebuilds.
@@ -581,7 +524,7 @@ class GeoMapWidgetState extends State<GeoMapWidget>
           onZoomIn: () => zoomIn(mapController),
           onZoomOut: () => zoomOut(mapController),
           onRefresh: handleRefreshPressed,
-          onLocate: _onLocatePressed,
+          onLocate: onLocatePressed,
           isLocating: isLocating,
         ),
       ),
