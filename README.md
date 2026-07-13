@@ -41,7 +41,7 @@ from the [Solid Community AU](https://solidcommunity.au) repository:
   [zip](https://solidcommunity.au/installers/geopod-linux.zip);
 + **Windows**
   [zip](https://solidcommunity.au/installers/geopod-windows.zip) or
-  [inno](https://solidcommunity.au/installers/geopod-windows-inno.exe).
+  [exe](https://solidcommunity.au/installers/geopod-windows-inno.exe).
 
 Contributions are welcome. Visit
 [github](https://github.com/gjwgit/geopod) to submit an issue or, even
