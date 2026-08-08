@@ -44,12 +44,15 @@ Future<void> _ensureIndexFile(MediaType type) async {
   // The index is encrypted with the media directory's inherited key, so make
   // sure that key/ACL exists before writing.
   await _ensureDir(type);
-  await writePod(
-    _indexSolidpodPath(type),
-    '[]',
-    encrypted: true,
-    overwrite: true,
-    inheritKeyFrom: _indexDirName(type),
+  // Tracked so closing the window waits for the write to land.
+  await SolidPendingWrites.track(
+    writePod(
+      _indexSolidpodPath(type),
+      '[]',
+      encrypted: true,
+      overwrite: true,
+      inheritKeyFrom: _indexDirName(type),
+    ),
   );
 }
 
@@ -163,12 +166,14 @@ Future<bool> _writeIndex(MediaType type, List<MediaItem> items) async {
     // the media directory's inherited key/ACL exists before writing — even for
     // unencrypted-media uploads, which would otherwise not have set it up.
     await _ensureDir(type);
-    await writePod(
-      _indexSolidpodPath(type),
-      content,
-      encrypted: true,
-      overwrite: true,
-      inheritKeyFrom: _indexDirName(type),
+    await SolidPendingWrites.track(
+      writePod(
+        _indexSolidpodPath(type),
+        content,
+        encrypted: true,
+        overwrite: true,
+        inheritKeyFrom: _indexDirName(type),
+      ),
     );
     // writePod throws on failure (handled below), so reaching here is success.
     // Update the cache so subsequent reads are still fast.

@@ -19,6 +19,7 @@ import 'package:flutter/services.dart';
 
 import 'package:emacs_text_field/emacs_text_field.dart';
 import 'package:gap/gap.dart';
+import 'package:solidui/solidui.dart';
 
 import 'package:geopod/constants/place_tags.dart';
 import 'package:geopod/services/geocoding_service.dart';
@@ -48,6 +49,7 @@ class AddPlaceForm extends StatefulWidget {
     this.initialLongitude,
     required this.returnWidget,
     this.knownTags = const {},
+    this.onSave,
   });
 
   final double? initialLatitude;
@@ -58,11 +60,20 @@ class AddPlaceForm extends StatefulWidget {
   /// to populate the tag selector.
   final Set<String> knownTags;
 
+  /// Persists the new place.  The caller owns the optimistic list update, the
+  /// Pod write, and the success/failure feedback.
+  ///
+  /// Returns a future that completes when the Pod write is done.  It MUST be
+  /// awaited by the caller's implementation: closing the app window waits on
+  /// this before quitting, so a fire-and-forget write would be killed
+  /// mid-flight and the new place silently lost.
+  final Future<void> Function(AddPlaceResult)? onSave;
+
   @override
   State<AddPlaceForm> createState() => _AddPlaceFormState();
 }
 
-class _AddPlaceFormState extends State<AddPlaceForm> {
+class _AddPlaceFormState extends State<AddPlaceForm> with UnsavedChangesMixin {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _latitudeController = TextEditingController();
@@ -80,6 +91,19 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
   // All places are stored encrypted; there is no opt-out.
   static const bool _encrypt = true;
 
+  /// True while a save is in flight, so a second Save cannot start one.
+  bool _saving = false;
+
+  // Snapshot of the last-saved state — used to compute _hasChanges. The
+  // initial snapshot covers the coordinates pre-filled from the map tap, so
+  // simply opening and closing the form counts as no change.
+  late String _savedTitle;
+  late String _savedLat;
+  late String _savedLng;
+  late String _savedNote;
+  String? _savedDate;
+  late Set<String> _savedTags;
+
   @override
   void initState() {
     super.initState();
@@ -94,7 +118,45 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
       _loadAddressPreview();
     }
+    _snapshotSavedState();
   }
+
+  /// Snapshot the current field values as the last-saved baseline.
+
+  void _snapshotSavedState() {
+    _savedTitle = _titleController.text;
+    _savedLat = _latitudeController.text;
+    _savedLng = _longitudeController.text;
+    _savedNote = _noteController.text;
+    _savedDate = _dateOfInterest?.toIso8601String();
+    _savedTags = {..._tags};
+  }
+
+  /// True when the user has typed something that is not yet on the Pod.
+
+  bool get _hasChanges =>
+      _titleController.text != _savedTitle ||
+      _latitudeController.text != _savedLat ||
+      _longitudeController.text != _savedLng ||
+      _noteController.text != _savedNote ||
+      _dateOfInterest?.toIso8601String() != _savedDate ||
+      _savedTags.length != _tags.length ||
+      !_savedTags.containsAll(_tags);
+
+  // The window-close prompt comes from UnsavedChangesMixin, which needs to
+  // know what counts as unsaved and how to save it.
+
+  @override
+  bool get hasUnsavedChanges => _hasChanges;
+
+  @override
+  bool get canSaveUnsavedChanges =>
+      _titleController.text.trim().isNotEmpty &&
+      _validateLatitude(_latitudeController.text) == null &&
+      _validateLongitude(_longitudeController.text) == null;
+
+  @override
+  Future<bool> saveUnsavedChanges() => _save();
 
   @override
   void dispose() {
@@ -175,10 +237,12 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
     return null;
   }
 
-  void _handleSave() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  /// Persists the new place through [AddPlaceForm.onSave].  Never pops: the
+  /// window-close path keeps the form in place while the window goes away.
+  ///
+  /// Returns whether the place actually reached the Pod.
+
+  Future<bool> _save() async {
     final lat = double.parse(_latitudeController.text.trim());
     final lng = double.parse(_longitudeController.text.trim());
     final place = Place(
@@ -192,7 +256,37 @@ class _AddPlaceFormState extends State<AddPlaceForm> {
       dateOfInterest: _dateOfInterest?.toIso8601String(),
       tags: _tags.toList()..sort(),
     );
-    Navigator.pop(context, AddPlaceResult(place: place, encrypted: _encrypt));
+    setState(() => _saving = true);
+    try {
+      // Awaited so a window close can wait for the Pod write to complete.
+      await widget.onSave?.call(
+        AddPlaceResult(place: place, encrypted: _encrypt),
+      );
+      // Snapshot only once the write has actually landed. Marking the place
+      // saved on a failed write would stop the window-close prompt firing,
+      // losing the place the user asked to keep.
+      if (mounted) setState(_snapshotSavedState);
+
+      return true;
+    } catch (e) {
+      SolidWriteFailures.report('Failed saving the place.\n\n$e');
+
+      return false;
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Save from the Add Place button, then close the form.
+
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate() || _saving) {
+      return;
+    }
+    // Close only once the write has landed. A failed write leaves the form
+    // open with everything the user typed still in it.
+    final saved = await _save();
+    if (mounted && saved) Navigator.pop(context);
   }
 
   Future<void> _addCustomTag() async {

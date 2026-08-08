@@ -114,9 +114,3 @@ void showUpdatingPlaceSnackbar(BuildContext context, bool coordsChanged) {
 void showUpdateSuccessSnackbar(BuildContext context) {
   SnackBarHelper.showSuccess(context, 'Place updated successfully');
 }
-
-/// Shows update failure snackbar.
-
-void showUpdateFailureSnackbar(BuildContext context) {
-  SnackBarHelper.showError(context, 'Failed to update place');
-}

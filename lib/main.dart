@@ -100,6 +100,14 @@ void main() async {
 
   if (isDesktop) {
     await windowManager.ensureInitialized();
+
+    // Route the title-bar close button through the solidui close guard instead
+    // of quitting immediately, so a place being added or edited with unsaved
+    // changes can be saved or discarded rather than silently lost. AddPlaceForm
+    // and EditPlaceDialog register resolvers with the guard.
+
+    await SolidWindowCloseGuard.enable();
+
     const windowOptions = WindowOptions(title: appTitle);
     await windowManager.waitUntilReadyToShow(windowOptions, () async {});
   }

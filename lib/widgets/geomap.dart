@@ -300,15 +300,14 @@ class GeoMapWidgetState extends State<GeoMapWidget>
   }
 
   Future<void> _showAddPlaceDialog({double? lat, double? lng}) async {
-    final result = await showAddPlaceDialogIfLoggedIn(
+    await showAddPlaceDialogIfLoggedIn(
       context: context,
       latitude: lat,
       longitude: lng,
       knownTags: _knownTags(),
+      onSave: (result) =>
+          _handleOptimisticSave(result.place, encrypted: result.encrypted),
     );
-    if (result != null && mounted) {
-      _handleOptimisticSave(result.place, encrypted: result.encrypted);
-    }
   }
 
   /// All tags currently used across saved places, for the tag selector.
@@ -360,8 +359,8 @@ class GeoMapWidgetState extends State<GeoMapWidget>
     }
   }
 
-  void _handleOptimisticSave(Place p, {bool encrypted = false}) {
-    handleOptimisticPlaceSave(
+  Future<void> _handleOptimisticSave(Place p, {bool encrypted = false}) {
+    return handleOptimisticPlaceSave(
       place: p,
       allPlaces: allPlaces,
       savingPlaceIds: savingPlaceIds,
@@ -408,12 +407,20 @@ class GeoMapWidgetState extends State<GeoMapWidget>
       isEncrypted: m.isEncrypted,
     );
 
-    final result = await showDialog<Place>(
+    await showDialog<void>(
       context: context,
-      builder: (_) => EditPlaceDialog(place: place, knownTags: _knownTags()),
+      builder: (_) => EditPlaceDialog(
+        place: place,
+        knownTags: _knownTags(),
+        onSave: (result) => _persistPlaceEdit(place, result),
+      ),
     );
-    if (result == null || !mounted) return;
+  }
 
+  /// Persists an edit made in [EditPlaceDialog].  Awaited by the dialog so
+  /// that closing the window waits for the Pod write to land.
+
+  Future<void> _persistPlaceEdit(Place place, Place result) async {
     final coordsChanged = result.lat != place.lat || result.lng != place.lng;
     final i = allPlaces.indexWhere((p) => p.id == place.id);
     final old = i != -1 ? allPlaces[i] : null;
@@ -449,7 +456,10 @@ class GeoMapWidgetState extends State<GeoMapWidget>
         if (i != -1 && old != null) {
           setState(() => allPlaces[i] = old);
         }
-        showUpdateFailureSnackbar(context);
+        // Thrown so EditPlaceDialog keeps the user's edit and stays open,
+        // reporting the failure as a modal, rather than closing over a write
+        // that never landed.
+        throw Exception('The Pod rejected the update.');
       }
     } finally {
       skipPlacesChangeNotification = false;

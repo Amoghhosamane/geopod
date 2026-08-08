@@ -18,6 +18,7 @@ import 'dart:convert' show utf8;
 import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'package:solidpod/solidpod.dart';
+import 'package:solidui/solidui.dart';
 
 import 'package:geopod/services/pod/pod_auth.dart';
 import 'package:geopod/services/pod/pod_path.dart';
@@ -113,8 +114,11 @@ class PodFileSystem {
       }
 
       // createResource PUTs the content (replacing any existing file) with
-      // DPoP handled by solidpod, and throws on failure.
-      await createResource(url, content: content, contentType: contentType);
+      // DPoP handled by solidpod, and throws on failure. Tracked so closing
+      // the window waits for the write to land.
+      await SolidPendingWrites.track(
+        createResource(url, content: content, contentType: contentType),
+      );
       return true;
     } catch (e) {
       debugPrint('PodFileSystem.writeFile() - exception: $e');
@@ -140,7 +144,9 @@ class PodFileSystem {
       // A missing file is an acceptable outcome, so only delete when present.
       final status = await checkResourceStatus(url, isFile: true);
       if (status == ResourceStatus.notExist) return true;
-      await deleteResource(url, ResourceContentType.any);
+      await SolidPendingWrites.track(
+        deleteResource(url, ResourceContentType.any),
+      );
       return true;
     } catch (e) {
       debugPrint('PodFileSystem.deleteFile() - exception: $e');
@@ -223,10 +229,12 @@ class PodFileSystem {
       if (status == ResourceStatus.notExist) {
         // createResource with isFile:false POSTs a new container; the URL must
         // end with "/" and the content type must be directory.
-        await createResource(
-          url,
-          isFile: false,
-          contentType: ResourceContentType.directory,
+        await SolidPendingWrites.track(
+          createResource(
+            url,
+            isFile: false,
+            contentType: ResourceContentType.directory,
+          ),
         );
         debugPrint(
           'PodFileSystem._ensureDirectoryExists() - created: $currentPath',

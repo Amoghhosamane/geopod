@@ -18,6 +18,7 @@ import 'package:geopod/models/place.dart';
 import 'package:geopod/services/places_service.dart'
     show PlacesService, PlacesCacheManager, placesChangeNotifier;
 import 'package:geopod/utils/widget_utils.dart';
+import 'package:geopod/widgets/add_place_form.dart' show AddPlaceResult;
 import 'package:geopod/widgets/locations/edit_place_dialog.dart';
 import 'package:geopod/widgets/locations/import_operations.dart';
 import 'package:geopod/widgets/locations/locations_page_header.dart';
@@ -179,11 +180,17 @@ class _LocationsPageState extends State<LocationsPage>
 
   Future<void> _addPlace() async {
     final knownTags = <String>{for (final p in _places) ...p.tags};
-    final result = await showAddPlaceDialogIfLoggedIn(
+    await showAddPlaceDialogIfLoggedIn(
       context: context,
       knownTags: knownTags,
+      onSave: _persistNewPlace,
     );
-    if (result == null || !mounted) return;
+  }
+
+  /// Persists a place added in [AddPlaceForm].  Awaited by the form so that
+  /// closing the window waits for the Pod write to land.
+
+  Future<void> _persistNewPlace(AddPlaceResult result) async {
     // Optimistic update: show immediately, save in background.
     safeSetState(this, () => _places = [..._places, result.place]);
     final saved = await performBackgroundSave(result.place, context);
@@ -201,6 +208,10 @@ class _LocationsPageState extends State<LocationsPage>
         this,
         () => _places = _places.where((p) => p.id != result.place.id).toList(),
       );
+      // Thrown so AddPlaceForm keeps what the user typed and stays open,
+      // reporting the failure as a modal, rather than closing over a write
+      // that never landed.
+      throw Exception('The Pod rejected the new place.');
     }
   }
 
@@ -264,12 +275,20 @@ class _LocationsPageState extends State<LocationsPage>
 
   Future<void> _editPlace(Place place) async {
     final knownTags = <String>{for (final p in _places) ...p.tags};
-    final result = await showDialog<Place>(
+    await showDialog<void>(
       context: context,
-      builder: (_) => EditPlaceDialog(place: place, knownTags: knownTags),
+      builder: (_) => EditPlaceDialog(
+        place: place,
+        knownTags: knownTags,
+        onSave: (result) => _persistPlaceEdit(place, result),
+      ),
     );
-    if (result == null || !mounted) return;
+  }
 
+  /// Persists an edit made in [EditPlaceDialog].  Awaited by the dialog so
+  /// that closing the window waits for the Pod write to land.
+
+  Future<void> _persistPlaceEdit(Place place, Place result) async {
     final coordsChanged = result.lat != place.lat || result.lng != place.lng;
     final old = place;
     final i = _places.indexOf(place);
@@ -303,7 +322,10 @@ class _LocationsPageState extends State<LocationsPage>
           _places[i] = old;
         }
       });
-      showUpdateFailureSnackbar(context);
+      // Thrown so EditPlaceDialog keeps the user's edit and stays open,
+      // reporting the failure as a modal, rather than closing over a write
+      // that never landed.
+      throw Exception('The Pod rejected the update.');
     }
   }
 

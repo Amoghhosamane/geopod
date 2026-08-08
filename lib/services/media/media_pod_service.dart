@@ -28,6 +28,7 @@ import 'package:solidpod/solidpod.dart'
         getResource,
         ResourceContentType,
         SolidFunctionCallStatus;
+import 'package:solidui/solidui.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:geopod/models/media_item.dart';

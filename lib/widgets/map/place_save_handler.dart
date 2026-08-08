@@ -34,16 +34,6 @@ void showSaveSuccessSnackbar(BuildContext context) {
   SnackBarHelper.showSuccess(context, 'Place saved successfully!');
 }
 
-/// Shows an error snackbar when save fails.
-
-void showSaveErrorSnackbar(BuildContext context, dynamic error) {
-  SnackBarHelper.showError(
-    context,
-    'Failed to save: $error',
-    duration: const Duration(seconds: 4),
-  );
-}
-
 /// Performs background save of a place with address lookup.
 /// Note: Context is passed through to PlacesService which handles mounted checks internally.
 /// If [encrypted] is true, saves to encrypted storage.
@@ -87,33 +77,37 @@ Future<Place?> performBackgroundSave(
   }
 }
 
-/// Shows the add place dialog and returns the result.
-/// Returns null if user is not logged in or cancels.
-/// Returns AddPlaceResult with place and encryption flag.
+/// Shows the add place dialog, which persists the new place through [onSave].
+/// Does nothing if the user is not logged in or cancels.
+///
+/// [onSave] receives the AddPlaceResult with place and encryption flag, and
+/// must not complete until the Pod write has finished — the form awaits it so
+/// that closing the window cannot kill the write mid-flight.
 
-Future<AddPlaceResult?> showAddPlaceDialogIfLoggedIn({
+Future<void> showAddPlaceDialogIfLoggedIn({
   required BuildContext context,
+  required Future<void> Function(AddPlaceResult) onSave,
   double? latitude,
   double? longitude,
   Set<String> knownTags = const {},
 }) async {
   final webId = await getWebId();
   if (webId == null || webId.isEmpty) {
-    if (!context.mounted) return null;
+    if (!context.mounted) return;
     await showLoginRequiredDialog(context);
-    return null;
+    return;
   }
-  if (!context.mounted) return null;
-  final result = await showDialog<AddPlaceResult>(
+  if (!context.mounted) return;
+  await showDialog<void>(
     context: context,
     builder: (_) => AddPlaceForm(
       initialLatitude: latitude,
       initialLongitude: longitude,
       returnWidget: const GeoMapWidget(),
       knownTags: knownTags,
+      onSave: onSave,
     ),
   );
-  return result;
 }
 
 // Track ongoing zoom animation to prevent conflicts.

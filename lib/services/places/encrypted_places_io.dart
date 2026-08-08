@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:solidpod/solidpod.dart';
+import 'package:solidui/solidui.dart';
 
 import 'package:geopod/models/place.dart';
 import 'package:geopod/services/places/encrypted_places_paths.dart';
@@ -135,12 +136,15 @@ Future<(bool success, bool dirCreated)> writeEncryptedPlacesToPod(
     // encrypted: false to avoid the "encryption status changed" dialog.
     // The file will still be encrypted via the inherited directory key.
 
-    await writePod(
-      filePath,
-      jsonContent,
-      encrypted: false,
-      overwrite: true,
-      inheritKeyFrom: dirPath,
+    // Tracked so closing the window waits for the write to land.
+    await SolidPendingWrites.track(
+      writePod(
+        filePath,
+        jsonContent,
+        encrypted: false,
+        overwrite: true,
+        inheritKeyFrom: dirPath,
+      ),
     );
 
     // writePod returns void in 0.9.x, assume success if no exception
@@ -166,12 +170,14 @@ Future<bool> writeIndividualEncryptedPlaceFile(Place place) async {
     final dirPath = getEncryptedPlacesDirPath();
     final jsonContent = jsonEncode(place.toJson());
 
-    await writePod(
-      filePath,
-      jsonContent,
-      encrypted: false,
-      overwrite: true,
-      inheritKeyFrom: dirPath,
+    await SolidPendingWrites.track(
+      writePod(
+        filePath,
+        jsonContent,
+        encrypted: false,
+        overwrite: true,
+        inheritKeyFrom: dirPath,
+      ),
     );
     return true;
   } catch (e) {

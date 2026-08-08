@@ -85,7 +85,10 @@ class App extends StatelessWidget {
               'com.togaware.geopod://redirect',
               'http://localhost:4400/redirect.html',
             ],
-      child: appWithPreload,
+      // SolidWriteFailureListener raises a modal dialog for any Pod write that
+      // failed with nobody awaiting it, so a silently dropped save is
+      // reported. Mounted once here, inside the MaterialApp.
+      child: SolidWriteFailureListener(child: appWithPreload),
     );
 
     return SolidThemeApp(

@@ -26,6 +26,7 @@ then please show some ❤️ and tap on the star at
 
 ## 1.0 Updated key management
 
++ Prompt to save unsaved place on window close [1.0.21 20260808 gjw]
 + Refactor loc lint [1.0.20 20260712 gjw]
 + Updated oidc for chrome/web support [1.0.19 20260712 tonypioneer]
 + Update android support [1.0.18 20260704 gjw]

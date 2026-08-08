@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:emacs_text_field/emacs_text_field.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:gap/gap.dart';
+import 'package:solidui/solidui.dart';
 
 import 'package:geopod/constants/place_tags.dart';
 import 'package:geopod/models/place.dart';
@@ -31,6 +32,7 @@ class EditPlaceDialog extends StatefulWidget {
     super.key,
     required this.place,
     this.knownTags = const {},
+    this.onSave,
   });
 
   final Place place;
@@ -39,11 +41,21 @@ class EditPlaceDialog extends StatefulWidget {
   /// tag selector.
   final Set<String> knownTags;
 
+  /// Persists the edited place.  The caller owns the optimistic list update,
+  /// the Pod write, and the success/failure feedback.
+  ///
+  /// Returns a future that completes when the Pod write is done.  It MUST be
+  /// awaited by the caller's implementation: closing the app window waits on
+  /// this before quitting, so a fire-and-forget write would be killed
+  /// mid-flight and the edit silently lost.
+  final Future<void> Function(Place)? onSave;
+
   @override
   State<EditPlaceDialog> createState() => _EditPlaceDialogState();
 }
 
-class _EditPlaceDialogState extends State<EditPlaceDialog> {
+class _EditPlaceDialogState extends State<EditPlaceDialog>
+    with UnsavedChangesMixin {
   late final TextEditingController _titleController;
   late final TextEditingController _latController;
   late final TextEditingController _lngController;
@@ -53,11 +65,18 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
   bool _showPreview = false;
   String? _previewAddress;
 
-  late final String _initTitle;
-  late final String _initLat;
-  late final String _initLng;
-  late final String _initNote;
+  /// True while a save is in flight, so Save stays disabled without having to
+  /// pretend the edit is already saved.
+  bool _saving = false;
+
+  // Snapshot of the last-saved state — used to compute _hasChanges.
+  late String _initTitle;
+  late String _initLat;
+  late String _initLng;
+  late String _initNote;
   String? _initAddress;
+  String? _initDate;
+  late Set<String> _initTags;
 
   // Optional date of interest and tags for this place.
   DateTime? _dateOfInterest;
@@ -80,11 +99,7 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
     if (doi != null && doi.isNotEmpty) {
       _dateOfInterest = DateTime.tryParse(doi);
     }
-    _initTitle = _titleController.text;
-    _initLat = _latController.text;
-    _initLng = _lngController.text;
-    _initNote = _noteController.text;
-    _initAddress = _previewAddress;
+    _snapshotSavedState();
     for (final c in [
       _titleController,
       _latController,
@@ -97,6 +112,18 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
 
   void _onChanged() => setState(() {});
 
+  /// Snapshot the current field values as the last-saved baseline.
+
+  void _snapshotSavedState() {
+    _initTitle = _titleController.text;
+    _initLat = _latController.text;
+    _initLng = _lngController.text;
+    _initNote = _noteController.text;
+    _initAddress = _previewAddress;
+    _initDate = _dateOfInterest?.toIso8601String();
+    _initTags = {..._tags};
+  }
+
   bool get _hasChanges =>
       _titleController.text != _initTitle ||
       _latController.text != _initLat ||
@@ -106,15 +133,37 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
       _dateChanged ||
       _tagsChanged;
 
-  bool get _dateChanged {
-    final current = _dateOfInterest?.toIso8601String();
-    return current != widget.place.dateOfInterest;
+  bool get _dateChanged => _dateOfInterest?.toIso8601String() != _initDate;
+
+  bool get _tagsChanged =>
+      _initTags.length != _tags.length || !_initTags.containsAll(_tags);
+
+  /// The latitude currently entered, or null when it is not a valid value.
+
+  double? get _lat {
+    final v = double.tryParse(_latController.text);
+    return (v == null || v < -90 || v > 90) ? null : v;
   }
 
-  bool get _tagsChanged {
-    final orig = {...widget.place.tags};
-    return orig.length != _tags.length || !orig.containsAll(_tags);
+  /// The longitude currently entered, or null when it is not a valid value.
+
+  double? get _lng {
+    final v = double.tryParse(_lngController.text);
+    return (v == null || v < -180 || v > 180) ? null : v;
   }
+
+  // The window-close prompt comes from UnsavedChangesMixin, which needs to
+  // know what counts as unsaved and how to save it.
+
+  @override
+  bool get hasUnsavedChanges => _hasChanges;
+
+  @override
+  bool get canSaveUnsavedChanges =>
+      _titleController.text.trim().isNotEmpty && _lat != null && _lng != null;
+
+  @override
+  Future<bool> saveUnsavedChanges() => _save();
 
   Future<void> _addCustomTag() async {
     final tag = await promptForCustomTag(context);
@@ -150,25 +199,54 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
     }
   }
 
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
-    final lat = double.tryParse(_latController.text);
-    final lng = double.tryParse(_lngController.text);
-    if (lat == null || lng == null) return;
-    Navigator.pop(
-      context,
-      widget.place.copyWith(
-        title: _titleController.text.trim(),
-        lat: lat,
-        lng: lng,
-        note: _noteController.text,
-        timestamp: DateTime.now().toIso8601String(),
-        address: widget.place.address,
-        dateOfInterest: _dateOfInterest?.toIso8601String(),
-        clearDateOfInterest: _dateOfInterest == null,
-        tags: _tags.toList()..sort(),
-      ),
+  /// Persists the edit through [EditPlaceDialog.onSave].  Never pops: the
+  /// window-close path keeps the dialog in place while the window goes away.
+  ///
+  /// Returns whether the edit actually reached the Pod.
+
+  Future<bool> _save() async {
+    final lat = _lat;
+    final lng = _lng;
+    // Nothing writable yet, so nothing has been saved.
+    if (lat == null || lng == null) return false;
+    final updated = widget.place.copyWith(
+      title: _titleController.text.trim(),
+      lat: lat,
+      lng: lng,
+      note: _noteController.text,
+      timestamp: DateTime.now().toIso8601String(),
+      address: widget.place.address,
+      dateOfInterest: _dateOfInterest?.toIso8601String(),
+      clearDateOfInterest: _dateOfInterest == null,
+      tags: _tags.toList()..sort(),
     );
+    setState(() => _saving = true);
+    try {
+      // Awaited so a window close can wait for the Pod write to complete.
+      await widget.onSave?.call(updated);
+      // Snapshot only once the write has actually landed. Marking the edit
+      // saved on a failed write would disable Save and stop the window-close
+      // prompt firing, losing the edit the user asked to keep.
+      if (mounted) setState(_snapshotSavedState);
+
+      return true;
+    } catch (e) {
+      SolidWriteFailures.report('Failed saving the place.\n\n$e');
+
+      return false;
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Save from the Save button, then close the dialog.
+
+  Future<void> _saveAndClose() async {
+    if (!_formKey.currentState!.validate()) return;
+    // Close only once the write has landed. A failed write leaves the dialog
+    // open with the user's edits still in it.
+    final saved = await _save();
+    if (mounted && saved) Navigator.pop(context);
   }
 
   @override
@@ -392,7 +470,9 @@ class _EditPlaceDialogState extends State<EditPlaceDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton.icon(
-          onPressed: (_isLoading || !_hasChanges) ? null : _save,
+          onPressed: (_isLoading || _saving || !_hasChanges)
+              ? null
+              : _saveAndClose,
           icon: const Icon(Icons.save, size: 18),
           label: const Text('Save'),
           style: ElevatedButton.styleFrom(

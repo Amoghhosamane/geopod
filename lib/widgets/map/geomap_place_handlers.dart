@@ -12,8 +12,6 @@
 
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -25,11 +23,13 @@ import 'package:geopod/widgets/map/place_save_handler.dart';
 
 /// Handles optimistic save of a place.
 ///
-/// Updates UI immediately, then performs background save.
+/// Updates UI immediately, then performs the save.  The returned future
+/// completes only when the Pod write has finished, so a window close can wait
+/// on it rather than killing the write mid-flight.
 /// If [encrypted] is true, the place will be marked as encrypted for
 /// immediate purple marker display.
 
-void handleOptimisticPlaceSave({
+Future<void> handleOptimisticPlaceSave({
   required Place place,
   required List<Place> allPlaces,
   required Set<String> savingPlaceIds,
@@ -37,7 +37,7 @@ void handleOptimisticPlaceSave({
   required void Function(void Function()) setState,
   required Future<void> Function(Place) performBackgroundSave,
   bool encrypted = false,
-}) {
+}) async {
   // Mark place as encrypted if saving to encrypted storage.
   final placeToSave = encrypted ? place.copyWith(isEncrypted: true) : place;
 
@@ -56,9 +56,9 @@ void handleOptimisticPlaceSave({
     }
   });
 
-  // Start background save.
+  // Start the save, awaited so the caller can wait for the Pod write.
 
-  unawaited(performBackgroundSave(placeToSave));
+  await performBackgroundSave(placeToSave);
 }
 
 /// Performs background save and updates UI on completion.
@@ -91,19 +91,24 @@ Future<void> performPlaceBackgroundSave({
         showSaveSuccessSnackbar(context);
       });
     }
-  } catch (e) {
-    if (!context.mounted) return;
+  } catch (_) {
+    // Schedule the rollback of the optimistic marker after the current frame.
 
-    // Schedule error handling after current frame.
-
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      setState(() {
-        allPlaces.removeWhere((x) => x.id == originalPlace.id);
-        savingPlaceIds.remove(originalPlace.id);
+    if (context.mounted) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        setState(() {
+          allPlaces.removeWhere((x) => x.id == originalPlace.id);
+          savingPlaceIds.remove(originalPlace.id);
+        });
       });
-      showSaveErrorSnackbar(context, e);
-    });
+    }
+
+    // Rethrow so the form that started this save knows the write failed and
+    // keeps the user's text instead of closing over the top of it. The form
+    // reports the failure as a modal dialog.
+
+    rethrow;
   }
 }
 

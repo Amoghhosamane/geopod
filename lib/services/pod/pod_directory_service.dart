@@ -24,6 +24,7 @@ import 'package:solidpod/solidpod.dart'
         checkResourceStatus,
         deleteResource,
         getResourcesInContainer;
+import 'package:solidui/solidui.dart';
 
 import 'package:geopod/models/pod_file_item.dart';
 import 'package:geopod/services/pod/pod.dart';
@@ -282,7 +283,9 @@ class PodDirectoryService {
       try {
         final status = await checkResourceStatus(dirUrl, isFile: false);
         if (status != ResourceStatus.notExist) {
-          await deleteResource(dirUrl, ResourceContentType.directory);
+          await SolidPendingWrites.track(
+            deleteResource(dirUrl, ResourceContentType.directory),
+          );
         }
       } catch (e) {
         containerGone = false;

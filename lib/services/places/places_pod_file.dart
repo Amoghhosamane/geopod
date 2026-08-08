@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:solidpod/solidpod.dart';
+import 'package:solidui/solidui.dart';
 
 import 'package:geopod/models/place.dart';
 
@@ -67,7 +68,8 @@ Future<bool> writePlacesJsonFile(String content) async {
     // createResource PUTs the content (replacing any existing file) with DPoP
     // handled by solidpod, and throws on failure. Places data is round-tripped
     // as JSON by geopod, so the stored content-type label is not significant.
-    await createResource(url, content: content);
+    // Tracked so closing the window waits for the write to land.
+    await SolidPendingWrites.track(createResource(url, content: content));
     return true;
   } catch (_) {
     return false;
@@ -80,7 +82,9 @@ Future<bool> writeIndividualPlaceFile(Place place) async {
   try {
     final fp = await getIndividualPlaceFilePath(place.id);
     final url = await getFileUrl(fp);
-    await createResource(url, content: jsonEncode(place.toJson()));
+    await SolidPendingWrites.track(
+      createResource(url, content: jsonEncode(place.toJson())),
+    );
     debugPrint('Write individual place file: $fp');
     return true;
   } catch (e) {
@@ -100,7 +104,9 @@ Future<bool> deleteIndividualPlaceFile(String placeId) async {
     final url = await getFileUrl(fp);
     final status = await checkResourceStatus(url, isFile: true);
     if (status == ResourceStatus.notExist) return true;
-    await deleteResource(url, ResourceContentType.any);
+    await SolidPendingWrites.track(
+      deleteResource(url, ResourceContentType.any),
+    );
     return true;
   } catch (_) {
     return false;

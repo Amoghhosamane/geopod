@@ -70,12 +70,14 @@ Future<MediaItem?> _uploadItem({
         ? audioDirName
         : videoDirName;
     try {
-      await writePod(
-        solidpodRelPath,
-        base64Content,
-        encrypted: true,
-        overwrite: true,
-        inheritKeyFrom: solidpodDirPath,
+      await SolidPendingWrites.track(
+        writePod(
+          solidpodRelPath,
+          base64Content,
+          encrypted: true,
+          overwrite: true,
+          inheritKeyFrom: solidpodDirPath,
+        ),
       );
       uploadOk = true;
     } catch (e) {
@@ -88,10 +90,12 @@ Future<MediaItem?> _uploadItem({
     // bytes with DPoP handled by solidpod; it throws on failure.
     final url = await PodPath.getFileUrl(relPath);
     try {
-      await createResource(
-        url,
-        content: bytes,
-        contentType: ResourceContentType.auto,
+      await SolidPendingWrites.track(
+        createResource(
+          url,
+          content: bytes,
+          contentType: ResourceContentType.auto,
+        ),
       );
       uploadOk = true;
     } catch (e) {
