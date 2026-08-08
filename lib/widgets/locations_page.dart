@@ -193,7 +193,11 @@ class _LocationsPageState extends State<LocationsPage>
   Future<void> _persistNewPlace(AddPlaceResult result) async {
     // Optimistic update: show immediately, save in background.
     safeSetState(this, () => _places = [..._places, result.place]);
-    final saved = await performBackgroundSave(result.place, context);
+    final saved = await performBackgroundSave(
+      result.place,
+      context,
+      encrypted: result.encrypted,
+    );
     if (!mounted) return;
     if (saved != null) {
       safeSetState(

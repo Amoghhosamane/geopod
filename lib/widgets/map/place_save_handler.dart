@@ -41,7 +41,10 @@ void showSaveSuccessSnackbar(BuildContext context) {
 Future<Place?> performBackgroundSave(
   Place originalPlace,
   BuildContext context, {
-  bool encrypted = false,
+  // Required rather than defaulting to false: omitting it silently wrote to
+  // the plain track, which is how adds from the Locations page ended up
+  // unencrypted while the same form from the map did not.
+  required bool encrypted,
 }) async {
   final address = await GeocodingService.getAddress(
     originalPlace.lat,

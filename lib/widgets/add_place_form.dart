@@ -36,7 +36,10 @@ class AddPlaceResult {
   final Place place;
   final bool encrypted;
 
-  AddPlaceResult({required this.place, this.encrypted = false});
+  // Required rather than defaulting: geopod encrypts everything, so a caller
+  // must not be able to fall back to the plain track by omission.
+
+  AddPlaceResult({required this.place, required this.encrypted});
 }
 
 /// Form for adding a new place. Returns immediately (optimistic) with a Place
