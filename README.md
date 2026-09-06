@@ -65,7 +65,8 @@ access to through your Pod.
 
 ## GNU/Linux
 
-For building and running on GNU/Linux desktop, audio and video playback relies on `libmpv`. Install the required system development libraries:
+For building and running on GNU/Linux desktop, audio and video playback
+relies on `libmpv`. Install the required system development libraries:
 
 ```bash
 sudo apt-get install -y libmpv-dev mpv libsecret-1-dev
