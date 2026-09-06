@@ -20,11 +20,7 @@ import 'package:geopod/models/external_place.dart';
 /// action buttons (re-share if control permission is held, back).
 
 class ViewExternalPlace extends StatelessWidget {
-  const ViewExternalPlace({
-    super.key,
-    required this.place,
-    this.listPage,
-  });
+  const ViewExternalPlace({super.key, required this.place, this.listPage});
 
   /// The external place to display.
   final FoundExternalPlace place;
@@ -47,9 +43,7 @@ class ViewExternalPlace extends StatelessWidget {
           content?.displayTitle ?? place.placeFileName,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        leading: BackButton(
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: BackButton(onPressed: () => Navigator.of(context).pop()),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -251,12 +245,7 @@ class _DetailRow extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
         ],
       ),
     );

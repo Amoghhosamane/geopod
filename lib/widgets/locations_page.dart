@@ -281,10 +281,7 @@ class _LocationsPageState extends State<LocationsPage>
   void _sharePlace(Place place) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SharePlace(
-          place: place,
-          backPage: widget,
-        ),
+        builder: (_) => SharePlace(place: place, backPage: widget),
       ),
     );
   }

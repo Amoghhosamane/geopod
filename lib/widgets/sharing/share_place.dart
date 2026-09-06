@@ -20,11 +20,7 @@ import 'package:geopod/models/place.dart';
 /// access to a specific place file.
 
 class SharePlace extends StatelessWidget {
-  const SharePlace({
-    super.key,
-    required this.place,
-    this.backPage,
-  });
+  const SharePlace({super.key, required this.place, this.backPage});
 
   /// The place to share.
   final Place place;
@@ -47,9 +43,9 @@ class SharePlace extends StatelessWidget {
         leading: BackButton(
           onPressed: () {
             if (backPage != null) {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => backPage!),
-              );
+              Navigator.of(
+                context,
+              ).pushReplacement(MaterialPageRoute(builder: (_) => backPage!));
             } else {
               Navigator.of(context).pop();
             }

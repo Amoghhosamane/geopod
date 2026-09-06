@@ -24,11 +24,11 @@ import 'package:solidui/solidui.dart';
 import 'package:geopod/models/external_place.dart';
 import 'package:geopod/models/place.dart';
 import 'package:geopod/services/geocoding_service.dart';
-import 'package:geopod/services/sharing/sharing_service.dart';
 import 'package:geopod/services/map_settings_service.dart';
 import 'package:geopod/services/navigation_service.dart' show pendingNavTarget;
 import 'package:geopod/services/places_service.dart'
     show placesChangeNotifier, PlacesService;
+import 'package:geopod/services/sharing/sharing_service.dart';
 import 'package:geopod/utils/widget_utils.dart';
 import 'package:geopod/widgets/locations/edit_place_dialog.dart';
 import 'package:geopod/widgets/locations/place_operations.dart';
@@ -313,6 +313,7 @@ class GeoMapWidgetState extends State<GeoMapWidget>
 
   @override
   Future<void> handleRefreshPressed() async {
+    invalidateExternalPlaceCache();
     await super.handleRefreshPressed();
     await loadSharedPlaces();
   }

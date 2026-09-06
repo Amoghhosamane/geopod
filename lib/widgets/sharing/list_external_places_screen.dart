@@ -37,6 +37,7 @@ class _ListExternalPlacesScreenState extends State<ListExternalPlacesScreen> {
   }
 
   void _reload() {
+    invalidateExternalPlaceCache();
     setState(() {
       _dataFuture = getExternalPlaceList(forceRefresh: true);
     });

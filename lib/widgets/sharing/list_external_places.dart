@@ -138,10 +138,7 @@ class _ListExternalPlacesState extends State<ListExternalPlaces> {
                     _filter.isEmpty
                         ? 'No shared places found.'
                         : 'No places match "$_filter".',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
                 )
               : ListView.separated(
@@ -172,10 +169,7 @@ class _ListExternalPlacesState extends State<ListExternalPlaces> {
 /// Card representing a single shared place in the list.
 
 class _SharedPlaceCard extends StatelessWidget {
-  const _SharedPlaceCard({
-    required this.item,
-    required this.onTap,
-  });
+  const _SharedPlaceCard({required this.item, required this.onTap});
 
   final FoundExternalPlace item;
   final VoidCallback onTap;
@@ -264,10 +258,7 @@ class _SharedPlaceCard extends StatelessWidget {
                 runSpacing: 4,
                 children: permissions.map((perm) {
                   return Chip(
-                    label: Text(
-                      perm,
-                      style: const TextStyle(fontSize: 10),
-                    ),
+                    label: Text(perm, style: const TextStyle(fontSize: 10)),
                     padding: EdgeInsets.zero,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     visualDensity: VisualDensity.compact,

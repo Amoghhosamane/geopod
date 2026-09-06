@@ -84,13 +84,15 @@ ExternalPlace? extPlaceDetailsFromLog({
         placeOwner = value;
       } else if (predicate.contains(PermissionLogLiteral.granter.toString())) {
         permissionGranter = value;
-      } else if (predicate
-          .contains(PermissionLogLiteral.recepient.toString())) {
+      } else if (predicate.contains(
+        PermissionLogLiteral.recepient.toString(),
+      )) {
         permissionRecepient = value;
       } else if (predicate.contains(PermissionLogLiteral.type.toString())) {
         permissionType = value;
-      } else if (predicate
-          .contains(PermissionLogLiteral.permissions.toString())) {
+      } else if (predicate.contains(
+        PermissionLogLiteral.permissions.toString(),
+      )) {
         permissionList = value;
       }
     }
@@ -167,8 +169,9 @@ Future<ExternalPlacesCallResult> getExternalPlaceList({
   bool hasCurrentAccess = true,
   bool forceRefresh = false,
 }) async {
-  if (!forceRefresh &&
-      _cachedResult != null &&
+  if (forceRefresh) {
+    invalidateExternalPlaceCache();
+  } else if (_cachedResult != null &&
       _cacheTime != null &&
       DateTime.now().difference(_cacheTime!) < _cacheTtl) {
     debugPrint(
